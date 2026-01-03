@@ -9,3 +9,24 @@ services:
       - ./mysql/init:/docker-entrypoint-initdb.d
     ports:
       - "3306:3306"
+
+    py-server:
+    build: ./py_server
+    container_name: py-server
+    ports:
+      - "5002:5002"
+    depends_on:
+      - mysql
+    networks:
+      - itt440
+
+  py-client:
+    build: ./py_client
+    container_name: py-client
+    depends_on:
+      - py-server
+    networks:
+      - itt440
+
+networks:
+  itt440:
