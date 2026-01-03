@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   mysql:
     image: mysql:8.0
@@ -31,7 +29,7 @@ services:
     depends_on:
       - mysql
 
-c-client:
+  c-client:
     build: ./c_client
     depends_on:
       - c-server
