@@ -23,3 +23,16 @@ services:
     build: ./py_client
     depends_on:
       - py-server
+
+  c-server:
+    build: ./c_server
+    ports:
+      - "5003:5003"
+    depends_on:
+      - mysql
+
+c-client:
+    build: ./c_client
+    depends_on:
+      - c-server
+
