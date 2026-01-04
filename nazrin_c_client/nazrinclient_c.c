@@ -14,26 +14,22 @@ int main() {
     struct hostent *he;
     char buffer[1024] = {0};
 
-    // 1. Find the server
+    // Resolve specific server container name [cite: 26, 46]
     he = gethostbyname(SERVER_NAME);
-    if (he == NULL) {
-        return 1;
-    }
+    if (he == NULL) return 1;
 
-    // 2. Create socket
     sock = socket(AF_INET, SOCK_STREAM, 0);
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(SERVER_PORT);
     memcpy(&server_addr.sin_addr, he->h_addr_list[0], he->h_length);
 
-    // 3. Connect and Read
+    // Ask the server for the latest point [cite: 49]
     if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) == 0) {
-        read(sock, buffer, 1024);
-        printf("Random number: %s", buffer);
-        fflush(stdout); 
-    } else {
-        printf("Error: Connection failed. Is the server running?\n");
-        fflush(stdout);
+        int bytes_received = read(sock, buffer, 1024);
+        if (bytes_received > 0) {
+            printf("%s", buffer); 
+            fflush(stdout);
+        }
     }
 
     close(sock);
