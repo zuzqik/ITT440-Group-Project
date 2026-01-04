@@ -7,7 +7,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
-#define SERVER_PORT 5004
+#define SERVER_PORT 5004 
 #define BUFFER_SIZE 1024
 
 int main() {
@@ -18,7 +18,7 @@ int main() {
     socklen_t addrlen = sizeof(address);
     time_t last_update = 0;
 
-    server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    server_fd = socket(AF_INET, SOCK_STREAM, 0); 
     setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
@@ -26,29 +26,26 @@ int main() {
     bind(server_fd, (struct sockaddr *)&address, sizeof(address));
     listen(server_fd, 5);
 
-    printf("Server is ready and listening...\n");
-    fflush(stdout);
-
     while (1) {
         time_t now = time(NULL);
 
-        if (difftime(now, last_update) >= 3) {
+        // Update record every 30 seconds 
+        if (difftime(now, last_update) >= 30) {
             MYSQL *conn = mysql_init(NULL);
             if (mysql_real_connect(conn, "mysql", "root", "rootpassword", "pointsdb", 3306, NULL, 0)) {
-                int rand_val = rand() % 100;
-                char query[256];
+                // Points must increase every time updated 
+                char query[512];
                 sprintf(query, "INSERT INTO points_table (user, points, datetime_stamp) "
-                               "VALUES ('random_user', %d, NOW()) "
-                               "ON DUPLICATE KEY UPDATE points=%d, datetime_stamp=NOW()", 
-                               rand_val, rand_val);
-                
+                               "VALUES ('nazrin_user', 1, NOW()) "
+                               "ON DUPLICATE KEY UPDATE points = points + 1, datetime_stamp = NOW()");
                 mysql_query(conn, query);
                 mysql_close(conn);
                 last_update = now;
             }
         }
 
-        struct timeval tv = {0, 10000}; // Check for 0.01 seconds
+        // Check for Client Connections (Non-blocking)
+        struct timeval tv = {0, 1000}; 
         fd_set readfds;
         FD_ZERO(&readfds);
         FD_SET(server_fd, &readfds);
@@ -57,22 +54,28 @@ int main() {
             new_socket = accept(server_fd, (struct sockaddr *)&address, &addrlen);
             MYSQL *conn = mysql_init(NULL);
             if (mysql_real_connect(conn, "mysql", "root", "rootpassword", "pointsdb", 3306, NULL, 0)) {
-                mysql_query(conn, "SELECT points FROM points_table WHERE user='random_user'");
+                // Accessing latest point and timestamp 
+                mysql_query(conn, "SELECT user, points, datetime_stamp FROM points_table WHERE user='nazrin_user'");
                 MYSQL_RES *res = mysql_store_result(conn);
                 MYSQL_ROW row = mysql_fetch_row(res);
                 
-               if (row && row[0]) {
-                    send(new_socket, row[0], strlen(row[0]), 0);
-                } else {
-                    send(new_socket, "?", 1, 0); 
+                if (row) {
+                    // Generate a separate random number for this specific request
+                    int lucky_number = rand() % 1000;
+                    char response[BUFFER_SIZE];
+                    
+                    // Format: User, Points, Timestamp[cite: 33, 42], plus the Random Number
+                    snprintf(response, sizeof(response), 
+                             "User: %s\nPoints: %s\nTimestamp: %s\nRandom Value: %d\n", 
+                             row[0], row[1], row[2], lucky_number);
+                    
+                    send(new_socket, response, strlen(response), 0);
                 }
-                
                 mysql_free_result(res);
                 mysql_close(conn);
             }
             close(new_socket);
         }
-        sleep(30); 
     }
     return 0;
 }
