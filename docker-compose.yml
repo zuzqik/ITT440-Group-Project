@@ -63,7 +63,7 @@ services:
       dockerfile: Dockerfile_Fathu
     command: ./fathu_server_c
     ports:
-      - "5005:5005"
+      - "5009:5009"
     depends_on:
       mysql:
         condition: service_healthy
