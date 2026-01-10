@@ -75,3 +75,36 @@ services:
     command: ./fathu_c_client
     depends_on:
       - fathu-c-server
+
+   mirul_py_server:
+    build: 
+      context: ./mirul_py_server
+      dockerfile: DockerFile
+    container_name: mirul_py_server
+    ports:
+      - "5005:5005"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  mirul_py_client:
+    build: 
+      context: ./mirul_py_client
+      dockerfile: DockerFile
+    container_name: mirul_py_client
+    depends_on:
+      - mirul_py_server
+      
+  wafiy-pythonserver:
+    build: ./wafiy-pythonserver
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  wafiy-pythonclient:
+    build: ./wafiy-pythonclient
+    depends_on:
+      - wafiy-pythonserver
+     
