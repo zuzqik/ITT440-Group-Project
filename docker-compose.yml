@@ -56,3 +56,22 @@ services:
     command: ./nazrinclient_c
     depends_on:
       - nazrinserver_c
+      
+  fathu-c-server:
+    build:
+      context: ./fathu_c_server
+      dockerfile: Dockerfile_Fathu
+    command: ./fathu_server_c
+    ports:
+      - "5005:5005"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  fathu-c-client:
+    build:
+      context: ./fathu_c_client
+      dockerfile: Dockerfile_FATHU
+    command: ./fathu_c_client
+    depends_on:
+      - fathu-c-server
