@@ -13,8 +13,10 @@ VALUES
 ('nazrin_user', 0, NOW()),
 ('FATHU_C', 0, NOW()),
 ('mirul_py_user', 0, NOW()),
-('wafiy_user', 0, NOW())
+('wafiy_user', 0, NOW()),
+('nabil_user', 0, NOW())
 ON DUPLICATE KEY UPDATE user=user;
+
 
 
 
