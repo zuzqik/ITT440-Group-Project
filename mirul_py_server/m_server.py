@@ -5,12 +5,23 @@ from datetime import datetime
 import mysql.connector
 
 # Database connection
-db = mysql.connector.connect(
-    host="mysql", 
-    user="root",
-    password="rootpassword",
-    database="pointsdb"
-)
+def connect_to_db():
+    while True:
+        try:
+            print("Connecting to MySQL...")
+            conn = mysql.connector.connect(
+                host="mysql", 
+                user="root",
+                password="rootpassword",
+                database="pointsdb"
+            )
+            print("MySQL Connected!")
+            return conn
+        except mysql.connector.Error as err:
+            print(f"Database not ready yet... ({err})")
+            time.sleep(2)  # Wait 2 seconds before trying again
+
+db = connect_to_db()
 cursor = db.cursor()
 
 # CHANGED: Unique user for this specific server
