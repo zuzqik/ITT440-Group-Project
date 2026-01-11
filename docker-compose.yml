@@ -107,4 +107,18 @@ services:
     build: ./wafiy-pythonclient
     depends_on:
       - wafiy-pythonserver
+
+server:
+    build:
+      context: ./nabil_c_server 
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  client:
+    build:
+      context: ./nabil_c_client 
+    command: ./client
+    depends_on:
+      - server
      
