@@ -16,7 +16,7 @@ cursor = db.cursor()
 USER = "python_user"
 
 # Socket setup
-HOST = "0.0.0.0"
+HOST = "py-server"
 PORT = 5002
 
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
