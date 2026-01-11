@@ -18,6 +18,6 @@ COPY server.c .
 RUN gcc server.c -o server -lmysqlclient;
 
 # Requirement: Port must be more than 1024 [cite: 39, 44]
-EXPOSE 9000
+EXPOSE 5001
 
 CMD ["./server"]
