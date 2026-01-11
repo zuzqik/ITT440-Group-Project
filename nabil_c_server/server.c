@@ -3,61 +3,98 @@
 #include <string.h>
 #include <unistd.h>
 #include <mysql/mysql.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <time.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
 
-#define PORT 5003
+#define SERVER_PORT 5001
 #define BUFFER_SIZE 1024
 
-void update_db() {
-    MYSQL *conn = mysql_init(NULL);
-    // Requirement: Connect to existing database container
-    if (mysql_real_connect(conn, "mysql_db", "root", "rootpassword", "itt440-group-project-server", 0, NULL, 0)) {
-        printf("Connected to Database via Docker Network!\n");
-        // Requirement: Update user, increase points, and update timestamp
-        char *query = "UPDATE scores SET points = points + 10, datetime_stamp = NOW() WHERE user = 'nabil_user'";
-        if (mysql_query(conn, query)) {
-            fprintf(stderr, "Update Error: %s\n", mysql_error(conn));
-        } else {
-            printf("C Server: Database updated successfully.\n");
-        }
-    }
-    mysql_close(conn);
-}
-
 int main() {
+    // FIX 1: Disable stdout buffering so logs appear immediately in Docker Desktop
+    setvbuf(stdout, NULL, _IONBF, 0);
+
+    srand(time(NULL));
     int server_fd, new_socket;
     struct sockaddr_in address;
     int opt = 1;
-    int addrlen = sizeof(address);
+    socklen_t addrlen = sizeof(address);
+    time_t last_update = 0;
 
-    // Requirement: Create Socket Server
-    server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    server_fd = socket(AF_INET, SOCK_STREAM, 0); 
     setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-
+    
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(PORT); // Requirement: Port > 1024
+    address.sin_port = htons(SERVER_PORT);
 
-    bind(server_fd, (struct sockaddr *)&address, sizeof(address));
-    listen(server_fd, 3);
+    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+        perror("Bind failed");
+        exit(EXIT_FAILURE);
+    }
 
-    printf("C Server listening on port %d...\n", PORT);
+    listen(server_fd, 5);
+    printf("Server listening on port %d...\n", SERVER_PORT);
 
-    while(1) {
-        update_db(); // Requirement: Update record
+    while (1) {
+        time_t now = time(NULL);
+
+        // Update record every 30 seconds 
+        if (difftime(now, last_update) >= 30) {
+            MYSQL *conn = mysql_init(NULL);
+            // Ensure "mysql" matches your service name in docker-compose.yml
+            if (mysql_real_connect(conn, "mysql", "root", "rootpassword", "pointsdb", 3306, NULL, 0)) {
+                char query[512];
+                sprintf(query, "INSERT INTO points_table (user, points, datetime_stamp) "
+                               "VALUES ('nabil_user', 1, NOW()) "
+                               "ON DUPLICATE KEY UPDATE points = points + 1, datetime_stamp = NOW()");
+                
+                if (mysql_query(conn, query)) {
+                    fprintf(stderr, "Update Error: %s\n", mysql_error(conn));
+                } else {
+                    printf("Database updated for nabil_user at %ld\n", now);
+                }
+                mysql_close(conn);
+                last_update = now;
+            } else {
+                fprintf(stderr, "DB Connection Failed: %s\n", mysql_error(conn));
+            }
+        }
+
+        // Check for Client Connections (Non-blocking)
+        struct timeval tv = {1, 0}; // FIX 2: Increased to 1 second to save CPU cycles
+        fd_set readfds;
+        FD_ZERO(&readfds);
+        FD_SET(server_fd, &readfds);
         
-        // This is a basic loop. For a real project, use a timer or thread 
-        // to ensure it hits exactly every 30 seconds.
-        printf("Waiting for connection from C Client...\n");
-        new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen);
-        
-        char *message = "Data Received from C Server";
-        send(new_socket, message, strlen(message), 0);
-        close(new_socket);
-        
-        sleep(30); // Requirement: Update every 30 seconds
+        if (select(server_fd + 1, &readfds, NULL, NULL, &tv) > 0) {
+            new_socket = accept(server_fd, (struct sockaddr *)&address, &addrlen);
+            printf("Client connected!\n");
+
+            MYSQL *conn = mysql_init(NULL);
+            if (mysql_real_connect(conn, "mysql", "root", "rootpassword", "pointsdb", 3306, NULL, 0)) {
+                
+                mysql_query(conn, "SELECT user, points, datetime_stamp FROM points_table WHERE user='nabil_user'");
+                MYSQL_RES *res = mysql_store_result(conn);
+                MYSQL_ROW row = mysql_fetch_row(res);
+                
+                if (row) {
+                    int lucky_number = rand() % 1000;
+                    char response[BUFFER_SIZE];
+                    
+                    // FIX 3: Ensure a newline exists at the end of the string for the client to read
+                    snprintf(response, sizeof(response), 
+                             "User: %s\nPoints: %s\nTimestamp: %s\nRandom Value: %d\n", 
+                             row[0], row[1], row[2], lucky_number);
+                    
+                    send(new_socket, response, strlen(response), 0);
+                    printf("Sent data to client.\n");
+                }
+                mysql_free_result(res);
+                mysql_close(conn);
+            }
+            close(new_socket);
+        }
     }
     return 0;
 }
