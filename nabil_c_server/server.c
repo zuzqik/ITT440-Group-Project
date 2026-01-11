@@ -11,7 +11,6 @@
 #define BUFFER_SIZE 1024
 
 int main() {
-    // FIX 1: Disable stdout buffering so logs appear immediately in Docker Desktop
     setvbuf(stdout, NULL, _IONBF, 0);
 
     srand(time(NULL));
@@ -42,7 +41,6 @@ int main() {
         // Update record every 30 seconds 
         if (difftime(now, last_update) >= 30) {
             MYSQL *conn = mysql_init(NULL);
-            // Ensure "mysql" matches your service name in docker-compose.yml
             if (mysql_real_connect(conn, "mysql", "root", "rootpassword", "pointsdb", 3306, NULL, 0)) {
                 char query[512];
                 sprintf(query, "INSERT INTO points_table (user, points, datetime_stamp) "
@@ -82,7 +80,6 @@ int main() {
                     int lucky_number = rand() % 1000;
                     char response[BUFFER_SIZE];
                     
-                    // FIX 3: Ensure a newline exists at the end of the string for the client to read
                     snprintf(response, sizeof(response), 
                              "User: %s\nPoints: %s\nTimestamp: %s\nRandom Value: %d\n", 
                              row[0], row[1], row[2], lucky_number);
@@ -98,3 +95,4 @@ int main() {
     }
     return 0;
 }
+
