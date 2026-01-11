@@ -1,7 +1,7 @@
 services:
   mysql:
     image: mysql:8.0
-    container_name: mysql-db
+    container_name: mysql-db1
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword
       MYSQL_DATABASE: pointsdb
@@ -10,7 +10,7 @@ services:
     ports:
       - "3306:3306"
     healthcheck:
-      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -76,7 +76,7 @@ services:
     depends_on:
       - fathu-c-server
 
-   mirul_py_server:
+  mirul_py_server:
     build: 
       context: ./mirul_py_server
       dockerfile: DockerFile
@@ -108,7 +108,7 @@ services:
     depends_on:
       - wafiy-pythonserver
 
-server:
+  server:
     build:
       context: ./nabil_c_server 
     depends_on:
