@@ -5,12 +5,10 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-// FIX 1: Match the port used in your Server code (5001)
 #define SERVER_NAME "server"
 #define SERVER_PORT 5001 
 
 int main() {
-    // FIX 2: Disable buffering so logs appear instantly in Docker Desktop
     setvbuf(stdout, NULL, _IONBF, 0);
 
     int sock;
@@ -20,7 +18,6 @@ int main() {
 
     printf("Client starting... searching for server: %s\n", SERVER_NAME);
 
-    // Resolve specific server container name
     he = gethostbyname(SERVER_NAME);
     if (he == NULL) {
         herror("gethostbyname failed"); // Prints why it couldn't find the server
@@ -39,7 +36,6 @@ int main() {
 
     printf("Connecting to %s on port %d...\n", SERVER_NAME, SERVER_PORT);
 
-    // FIX 3: Added error reporting for connect
     if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) == 0) {
         printf("Connected successfully! Waiting for message...\n");
         
@@ -51,10 +47,11 @@ int main() {
             printf("Connected, but received no data.\n");
         }
     } else {
-        perror("Connection failed"); // This will tell you IF the port is wrong or server is down
+        perror("Connection failed");
     }
 
     printf("Closing connection.\n");
     close(sock);
     return 0;
 }
+
