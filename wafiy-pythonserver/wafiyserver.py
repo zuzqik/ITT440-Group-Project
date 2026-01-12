@@ -1,58 +1,81 @@
 import socket
-import mysql.connector
-import time
 import threading
+import time
 from datetime import datetime
+import mysql.connector
 
-# DB_CONFIG host must match the --name of your database container
 DB_CONFIG = {
-    'host': 'db_container',
-    'user': 'root',
-    'password': 'password',
-    'database': 'project_db'
+    "host": "mysql",
+    "user": "root",
+    "password": "rootpassword",
+    "database": "pointsdb"
 }
 
-def update_db_loop():
-    points = 0
+USER = "wafiy_user"
+PORT = 8080
+
+
+def connect_to_db():
     while True:
         try:
+            print("Connecting to MySQL...", flush=True)
             conn = mysql.connector.connect(**DB_CONFIG)
-            cursor = conn.cursor()
-            points += 5  # Points must increase every time updated 
-            now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            
-            # Update user in database table [cite: 40]
-            query = "REPLACE INTO user_stats (user, points, datetime_stamp) VALUES (%s, %s, %s)"
-            cursor.execute(query, ("wafiy_user", points, now))
-            conn.commit()
-            
-            print(f"Update Success: {points} points at {now}")
-            cursor.close()
-            conn.close()
-        except Exception as e:
-            print(f"Waiting for Database... {e}")
-        
-        time.sleep(30) # Must update every 30 seconds 
+            print("MySQL Connected!", flush=True)
+            return conn
+        except mysql.connector.Error as err:
+            print(f"Database not ready yet... ({err})", flush=True)
+            time.sleep(2)
 
-def start_socket_server():
-    # Create TCP socket [cite: 38]
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.bind(('0.0.0.0', 8080)) # Port > 1024 [cite: 39]
-    server.listen(5)
-    
+
+def update_points():
     while True:
-        client, addr = server.accept()
-        data = client.recv(1024).decode()
-        if data == "GET_LATEST_POINT":
-            # Server accesses DB before passing to client [cite: 50]
-            conn = mysql.connector.connect(**DB_CONFIG)
+        try:
+            conn = connect_to_db()
             cursor = conn.cursor()
-            cursor.execute("SELECT points FROM user_stats WHERE user='wafiy_user'")
-            val = cursor.fetchone()
-            client.send(str(val[0]).encode() if val else b"No Data")
-            conn.close()
-        client.close()
 
-if __name__ == "__main__":
-    threading.Thread(target=update_db_loop, daemon=True).start()
-    start_socket_server()
+            while True:
+                now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                cursor.execute(
+                    "UPDATE points_table SET points = points + 1, datetime_stamp = %s WHERE user = %s",
+                    (now, USER)
+                )
+                conn.commit()
+                print(f"Points updated for {USER} at {now}", flush=True)
+                time.sleep(30)
+
+        except Exception as e:
+            print(f"DB error, reconnecting... {e}", flush=True)
+            time.sleep(5)
+
+
+# Start background updater
+threading.Thread(target=update_points, daemon=True).start()
+
+# TCP socket server
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.bind(("0.0.0.0", PORT))
+server.listen()
+
+print(f"wafiy Python server running on port {PORT}...", flush=True)
+
+while True:
+    client, addr = server.accept()
+    try:
+        conn = connect_to_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT points, datetime_stamp FROM points_table WHERE user = %s", (USER,))
+        result = cursor.fetchone()
+
+        if result:
+            points, ts = result
+            response = f"User: {USER}, Points: {points}, Last update: {ts}"
+        else:
+            response = f"User {USER} not found in database."
+
+        client.send(response.encode())
+        conn.close()
+
+    except Exception as e:
+        client.send(f"Error: {e}".encode())
+
+    client.close()
