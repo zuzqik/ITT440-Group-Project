@@ -1,57 +1,45 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+#include <sys/socket.h>
 #include <arpa/inet.h>
-#include <netdb.h>
-
-#define SERVER_NAME "server"
-#define SERVER_PORT 5001 
+#include <unistd.h>
+#include <string.h>
+#include <netdb.h> // For gethostbyname
 
 int main() {
-    setvbuf(stdout, NULL, _IONBF, 0);
-
-    int sock;
-    struct sockaddr_in server_addr;
-    struct hostent *he;
+    int sock = 0;
+    struct sockaddr_in serv_addr;
     char buffer[1024] = {0};
-
-    printf("Client starting... searching for server: %s\n", SERVER_NAME);
-
-    he = gethostbyname(SERVER_NAME);
-    if (he == NULL) {
-        herror("gethostbyname failed"); // Prints why it couldn't find the server
-        return 1;
-    }
+    struct hostent *server;
 
     sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock < 0) {
-        perror("Socket creation failed");
+
+    // Resolve the hostname "server_c"
+    server = gethostbyname("nabil-server"); 
+    if (server == NULL) {
+        fprintf(stderr, "Error: Could not resolve hostname\n");
         return 1;
     }
 
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(SERVER_PORT);
-    memcpy(&server_addr.sin_addr, he->h_addr_list[0], he->h_length);
+    memset(&serv_addr, 0, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(5001); // Match the server port!
+    
+    // Copy the resolved IP address into the sockaddr structure
+    memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
 
-    printf("Connecting to %s on port %d...\n", SERVER_NAME, SERVER_PORT);
-
-    if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) == 0) {
-        printf("Connected successfully! Waiting for message...\n");
-        
-        int bytes_received = read(sock, buffer, 1024);
-        if (bytes_received > 0) {
-            // Display the message received from the server
-            printf("\n--- Message from C Server ---\n%s\n", buffer);
-        } else {
-            printf("Connected, but received no data.\n");
-        }
-    } else {
-        perror("Connection failed");
+    printf("Connecting to server...\n");
+    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        perror("Connection Failed");
+        return 1;
     }
 
-    printf("Closing connection.\n");
+    int bytes_read = read(sock, buffer, 1024);
+    if (bytes_read > 0) {
+        printf("Message from C Server:\n%s\n", buffer);
+    } else {
+        printf("Connected, but no data received.\n");
+    }
+
     close(sock);
     return 0;
 }
-
