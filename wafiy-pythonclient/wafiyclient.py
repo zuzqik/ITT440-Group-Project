@@ -1,23 +1,18 @@
 import socket
-import time
 
-SERVER_HOST = "python-server"  # container name later
-SERVER_PORT = 5001
+# Server details - MUST match the service name in docker-compose.yml
+HOST = "wafiy-pythonserver" 
+# Port must match the server's internal port
+PORT = 8080
 
-while True:
-    try:
-        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client.connect((SERVER_HOST, SERVER_PORT))
-
-        client.sendall(b"GET_POINTS")
-        response = client.recv(1024).decode()
-
-        print("Server response:", response)
-
-        client.close()
-        time.sleep(10)
-
-    except Exception as e:
-        print("Error:", e)
-        time.sleep(5)
-	
+try:
+    # Connect to server
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect((HOST, PORT))
+        # Requirement: Client asks for the latest point from server
+        data = s.recv(1024)  # receive response from server
+        print("Server response:", data.decode())
+except ConnectionRefusedError:
+    print("Error: Could not connect to mirul_py_server. Is it running?")
+except Exception as e:
+    print(f"An error occurred: {e}")
