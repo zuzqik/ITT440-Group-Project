@@ -38,6 +38,12 @@ int main() {
                 sprintf(query, "INSERT INTO points_table (user, points, datetime_stamp) "
                                "VALUES ('nazrin_user', 1, NOW()) "
                                "ON DUPLICATE KEY UPDATE points = points + 1, datetime_stamp = NOW()");
+
+                if (mysql_query(conn, query)) {
+                    fprintf(stderr, "Update Error: %s\n", mysql_error(conn));
+                } else {
+                    printf("Database updated for nazrin_user at %ld\n", now);
+                }
                 mysql_query(conn, query);
                 mysql_close(conn);
                 last_update = now;
@@ -64,7 +70,6 @@ int main() {
                     int lucky_number = rand() % 1000;
                     char response[BUFFER_SIZE];
                     
-                    // Format: User, Points, Timestamp[cite: 33, 42], plus the Random Number
                     snprintf(response, sizeof(response), 
                              "User: %s\nPoints: %s\nTimestamp: %s\nRandom Value: %d\n", 
                              row[0], row[1], row[2], lucky_number);
